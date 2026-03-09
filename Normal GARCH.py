@@ -18,12 +18,12 @@ log_returns = df['LogReturn'].values
 # ------------------------------
 # Backtest window (固定區間)
 # ------------------------------
-backtest_start = pd.to_datetime("2023-01-01")
-backtest_end   = pd.to_datetime("2024-12-31")
+backtest_start = pd.to_datetime("2010-01-01")
+backtest_end   = pd.to_datetime("2022-12-31")
 
 
 # 參數設定
-window = 250                  
+window = 1000                  
 forecast_horizon = 10         
 alpha = 0.01                 
 

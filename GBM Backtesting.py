@@ -22,7 +22,7 @@ backtest_end   = pd.to_datetime("2024-12-31")
 
 
 # 參數
-window = 250 
+window = 600 
 forecast_horizon = 10
 alpha = 0.01
 

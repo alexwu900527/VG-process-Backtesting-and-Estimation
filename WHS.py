@@ -15,7 +15,7 @@ df = df.dropna()
 
 
 # 參數
-window = 500
+window = 1000
 forecast_horizon = 10
 alpha = 0.01
 lambda_ewma = 0.97   # 加權參數
@@ -23,8 +23,8 @@ lambda_ewma = 0.97   # 加權參數
 # ------------------------------
 # Backtest window (固定區間)
 # ------------------------------
-backtest_start = pd.to_datetime("2023-01-01")
-backtest_end   = pd.to_datetime("2024-12-31")
+backtest_start = pd.to_datetime("2010-01-01")
+backtest_end   = pd.to_datetime("2022-12-31")
 
 
 
