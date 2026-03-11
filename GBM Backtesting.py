@@ -18,7 +18,7 @@ df = df.dropna()
 # Backtest window (固定區間)
 # ------------------------------
 backtest_start = pd.to_datetime("2023-01-01")
-backtest_end   = pd.to_datetime("2024-12-31")
+backtest_end   = pd.to_datetime("2025-05-20")
 
 
 # 參數
@@ -149,6 +149,28 @@ mean_ql_breach = quantile_loss_array[breach_array].mean()
 # 1. Kupiec Unconditional Coverage Test (UC)
 # ------------------------------
 kupiec_test = binomtest(num_breaches, total_tests, alpha, alternative='two-sided')
+
+# ------------------------------
+# Kupiec LR POF (Likelihood Ratio)
+# ------------------------------
+pi_hat = num_breaches / total_tests
+
+eps = 1e-12
+pi_hat = np.clip(pi_hat, eps, 1-eps)
+alpha_c = np.clip(alpha, eps, 1-eps)
+
+logL_null = (total_tests - num_breaches) * np.log(1 - alpha_c) + num_breaches * np.log(alpha_c)
+logL_alt  = (total_tests - num_breaches) * np.log(1 - pi_hat) + num_breaches * np.log(pi_hat)
+
+lr_pof = -2 * (logL_null - logL_alt)
+
+if lr_pof < 0 and lr_pof > -1e-8:
+    lr_pof = 0.0
+
+pval_pof = 1 - chi2.cdf(lr_pof, df=1)
+
+print(f'\nKupiec LR POF statistic : {lr_pof:.6f}')
+print(f'Kupiec LR POF p-value   : {pval_pof:.4e}')
 
 # ------------------------------
 # Christoffersen IND and CC (robust, using log-likelihoods)
