@@ -5,8 +5,8 @@ from scipy.stats import norm, binomtest, chi2
 from arch import arch_model
 
 # 讀資料
-ticker = "NASDAQ"
-df = pd.read_csv("NASDAQ.csv", parse_dates=['Date'])
+ticker = "QQQ"
+df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
 df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2025-05-20')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
@@ -24,7 +24,7 @@ backtest_end   = pd.to_datetime("2025-05-20")
 
 # 參數設定
 window = 500                  
-forecast_horizon = 10         
+forecast_horizon = 1         
 alpha = 0.01                 
 
 # 儲存結果
