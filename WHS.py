@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
 # 讀資料
-ticker = "QQQ"
+ticker = "NASDAQ"
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values("Date")
 df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2025-05-20')] 
@@ -15,7 +15,7 @@ df = df.dropna()
 
 
 # 參數
-window = 500
+window = 750
 forecast_horizon = 1
 alpha = 0.01
 lambda_ewma = 0.97   # 加權參數
@@ -23,8 +23,8 @@ lambda_ewma = 0.97   # 加權參數
 # ------------------------------
 # Backtest window (固定區間)
 # ------------------------------
-backtest_start = pd.to_datetime("2023-01-01")
-backtest_end   = pd.to_datetime("2025-05-20")
+backtest_start = pd.to_datetime("2013-01-01")
+backtest_end   = pd.to_datetime("2022-12-31")
 
 
 
@@ -263,5 +263,5 @@ if cc_pval < 0.05:
 else:
     print("✅ CC Test：模型通過條件覆蓋檢定")
 
-print(f'\n平均 Quantile Loss (Tick Loss)        : {mean_ql:.6f}')
+print(f'\n平均 Quantile Loss (Tick Loss)        : {mean_ql:.8f}')
 print(f'違約時平均 Quantile Loss              : {mean_ql_breach:.6f}')

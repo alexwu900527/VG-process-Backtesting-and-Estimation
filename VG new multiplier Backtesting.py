@@ -17,8 +17,8 @@ warnings.filterwarnings("ignore")
 # 讀資料 & 設定參數
 # =====================================================
 ticker = "NASDAQ"
-alpha = 0.01
-window = 750
+alpha = 0.025
+window = 200
 forecast_horizon = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
@@ -32,8 +32,8 @@ df = df.dropna()
 # ------------------------------
 # Backtest window (固定區間)
 # ------------------------------
-backtest_start = pd.to_datetime("2023-01-01")
-backtest_end   = pd.to_datetime("2025-05-20")
+backtest_start = pd.to_datetime("2013-01-01")
+backtest_end   = pd.to_datetime("2022-12-31")
 
 
 # ------------------------------
@@ -235,8 +235,8 @@ for i in valid_indices:
 
     # 10-day overlapping log-return
     train_10_log = np.array([
-        np.sum(train_data[j:j+10])
-        for j in range(len(train_data)-9)
+        np.sum(train_data[j:j + forecast_horizon])
+        for j in range(len(train_data)- forecast_horizon + 1)
     ])
 
     train_10_simple = np.exp(train_10_log) - 1

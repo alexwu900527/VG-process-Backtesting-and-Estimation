@@ -21,12 +21,12 @@ warnings.filterwarnings("ignore")
 
 ticker = "NASDAQ"
 alpha = 0.01
-window_vg = 750
-window_gbm = 600
-window_garch = 500
-window_whs = 500
+window_vg = 600
+window_gbm = 750
+window_garch = 750
+window_whs = 200
 
-forecast_horizon = 10
+forecast_horizon = 1
 
 backtest_start = pd.to_datetime("2023-01-01")
 backtest_end   = pd.to_datetime("2025-05-20")
@@ -80,7 +80,6 @@ log_returns = df['LogReturn'].values
 
 
 # VG
-
 
 
 def empirical_var(data, alpha):
@@ -265,8 +264,8 @@ for i in valid_indices:
 
     # 10-day overlapping log-return
     train_10_log = np.array([
-        np.sum(train_data[j:j+10])
-        for j in range(len(train_data)-9)
+        np.sum(train_data[j:j+forecast_horizon])
+        for j in range(len(train_data)-forecast_horizon+1)
     ])
 
     train_10_simple = np.exp(train_10_log) - 1
@@ -527,13 +526,13 @@ for i in valid_indices:
 plt.figure(figsize=(14, 7))
 plt.plot(estimation_dates, actual_returns, label=f'Actual {forecast_horizon}-day Return', color='black', lw=2.5)
 plt.plot(estimation_dates, var_list_vg, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% VaR (VG)', color='green', lw=2)
-plt.plot(estimation_dates, cvar_list_vg, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (VG)', color='green', linestyle='--', lw=1.7)
+plt.plot(estimation_dates, cvar_list_vg, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (VG)', color='green', linestyle='--', lw=1.5)
 plt.plot(estimation_dates, var_list_garch, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% VaR (GARCH)', color='blue', lw=2)
-plt.plot(estimation_dates, cvar_list_garch, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (GARCH)', color='blue', linestyle='--', lw=1.7)
+plt.plot(estimation_dates, cvar_list_garch, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (GARCH)', color='blue', linestyle='--', lw=1.5)
 plt.plot(estimation_dates, var_list_gbm, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% VaR (GBM)', color='orange', lw=2)
-plt.plot(estimation_dates, cvar_list_gbm, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (GBM)', color='orange', linestyle='--', lw=1.7)
+plt.plot(estimation_dates, cvar_list_gbm, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (GBM)', color='orange', linestyle='--', lw=1.5)
 plt.plot(estimation_dates, var_list_whs, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% VaR (WHS)', color='red', lw=2)
-plt.plot(estimation_dates, cvar_list_whs, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (WHS)', color='red', linestyle='--', lw=1.7)
+plt.plot(estimation_dates, cvar_list_whs, label=f'{forecast_horizon}-day {float((1-alpha)*100)}% CVaR (WHS)', color='red', linestyle='--', lw=1.5)
 plt.title(f'{ticker} {forecast_horizon}-day {float((1-alpha)*100)}% VaR and CVaR Backtesting')
 plt.xlabel('Date')
 plt.ylabel('Return')
