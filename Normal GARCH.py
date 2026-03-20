@@ -24,8 +24,8 @@ backtest_end   = pd.to_datetime("2022-12-31")
 
 # 參數設定
 window = 150                  
-forecast_horizon = 1         
-alpha = 0.01                 
+forecast_horizon = 10         
+alpha = 0.025                
 
 # 儲存結果
 var_list, cvar_list, actual_returns = [], [], []

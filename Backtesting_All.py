@@ -23,8 +23,8 @@ ticker = "NASDAQ"
 alpha = 0.01
 window_vg = 600
 window_gbm = 750
-window_garch = 750
 window_whs = 200
+window_garch = 750
 
 forecast_horizon = 1
 

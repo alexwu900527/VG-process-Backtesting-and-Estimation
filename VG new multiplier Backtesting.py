@@ -18,8 +18,8 @@ warnings.filterwarnings("ignore")
 # =====================================================
 ticker = "NASDAQ"
 alpha = 0.025
-window = 200
-forecast_horizon = 10
+window = 500
+forecast_horizon = 1
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
