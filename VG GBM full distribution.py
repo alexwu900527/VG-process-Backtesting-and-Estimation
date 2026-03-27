@@ -9,6 +9,8 @@ from scipy.special import logsumexp
 from scipy.integrate import quad
 import warnings
 import time
+from scipy.stats import skew, kurtosis
+
 start_time = time.perf_counter()
 
 warnings.filterwarnings("ignore")
@@ -22,7 +24,7 @@ d = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
-df = df[(df['Date'] >= '2020-01-01') & (df['Date'] <= '2022-12-31')] 
+df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2024-12-31')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
 
@@ -87,7 +89,7 @@ def vg_neg_loglik_mixture_fast(params, data):
     log_weight = (
         np.log(w) + (1/nu - 1) * np.log(g) - sp_gamma(1/nu)
     )
-    
+
 
     log_pdf = norm.logpdf(
         x,
@@ -244,6 +246,41 @@ print(f"GBM {alpha*100:.1f}% Simple VaR = {gbm_var_simple:.5f}")
 print(f"GBM {alpha*100:.1f}% Simple CVaR = {gbm_cvar_simple:.5f}")
 print(f"Empirical {alpha*100:.1f}% quantile (VaR) = {empirical_var_simple:.5f}")
 print(f"Empirical {alpha*100:.1f}% quantile (CVaR) = {empirical_cvar_simple:.5f}")
+
+
+# =====================================================
+# Skewness & Kurtosis
+# =====================================================
+
+# Empirical
+skew_emp = skew(log_returns)
+kurt_emp = kurtosis(log_returns, fisher=False)  # 常用 "regular kurtosis"
+
+# GBM (Normal)
+skew_gbm = 0
+kurt_gbm = 3
+
+# VG theoretical moments
+# Var = sigma^2 + nu * theta^2
+var_vg = sigma_hat**2 + nu_hat * theta_hat**2
+
+# Skewness
+skew_vg = (2 * theta_hat**3 * nu_hat**2 + 3 * sigma_hat**2 * theta_hat * nu_hat) / (var_vg ** (3/2))
+
+# Kurtosis
+kurt_vg = 3 * (
+    1 + 2 * nu_hat * (sigma_hat**4 + 2 * sigma_hat**2 * theta_hat**2 + theta_hat**4) / (var_vg**2)
+)
+
+print("\n===== Skewness & Kurtosis =====")
+print(f"Empirical Skewness = {skew_emp:.4f}")
+print(f"Empirical Kurtosis = {kurt_emp:.4f}")
+
+print(f"GBM Skewness = {skew_gbm:.4f}")
+print(f"GBM Kurtosis = {kurt_gbm:.4f}")
+
+print(f"VG Skewness = {skew_vg:.4f}")
+print(f"VG Kurtosis = {kurt_vg:.4f}")
 
 # =====================================================
 # Empirical vs VG distribution plot

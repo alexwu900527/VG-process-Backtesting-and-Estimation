@@ -9,6 +9,8 @@ from scipy.special import logsumexp
 from scipy.integrate import quad
 import warnings
 import time
+from scipy.stats import skew, kurtosis
+
 start_time = time.perf_counter()
 
 warnings.filterwarnings("ignore")
@@ -18,11 +20,11 @@ warnings.filterwarnings("ignore")
 # =====================================================
 ticker = "QQQ"
 alpha = 0.01
-d = 1
+d = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
-df = df[(df['Date'] >= '2022-01-01') & (df['Date'] <= '2025-05-20')] 
+df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2024-12-31')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
 
@@ -85,7 +87,7 @@ def vg_neg_loglik_mixture_fast(params, data):
     x = data[None, :]
 
     log_weight = (
-        np.log(w) + (1/nu - 1) * np.log(g) - sp_gammaln(1/nu) #大的window用gamma 小的window用gammaln
+        np.log(w) + (1/nu - 1) * np.log(g) - sp_gamma(1/nu) #大的window用gamma 小的window用gammaln
     )
 
     log_pdf = norm.logpdf(
@@ -252,6 +254,41 @@ print(f"GBM {alpha*100:.1f}% Simple CVaR = {gbm_cvar_simple:.5f}")
 print(f"Empirical {alpha*100:.1f}% quantile (VaR) = {empirical_var_simple:.5f}")
 print(f"Empirical {alpha*100:.1f}% quantile (CVaR) = {empirical_cvar_simple:.5f}")
 
+
+# =====================================================
+# Skewness & Kurtosis
+# =====================================================
+
+# Empirical
+skew_emp = skew(log_returns)
+kurt_emp = kurtosis(log_returns, fisher=False)  # 常用 "regular kurtosis"
+
+# GBM (Normal)
+skew_gbm = 0
+kurt_gbm = 3
+
+# VG theoretical moments
+# Var = sigma^2 + nu * theta^2
+var_vg = sigma_hat**2 + nu_hat * theta_hat**2
+
+# Skewness
+skew_vg = (2 * theta_hat**3 * nu_hat**2 + 3 * sigma_hat**2 * theta_hat * nu_hat) / (var_vg ** (3/2))
+
+# Kurtosis
+kurt_vg = 3 * (
+    1 + 2 * nu_hat * (sigma_hat**4 + 2 * sigma_hat**2 * theta_hat**2 + theta_hat**4) / (var_vg**2)
+)
+
+print("\n===== Skewness & Kurtosis =====")
+print(f"Empirical Skewness = {skew_emp:.4f}")
+print(f"Empirical Kurtosis = {kurt_emp:.4f}")
+
+print(f"GBM Skewness = {skew_gbm:.4f}")
+print(f"GBM Kurtosis = {kurt_gbm:.4f}")
+
+print(f"VG Skewness = {skew_vg:.4f}")
+print(f"VG Kurtosis = {kurt_vg:.4f}")
+
 # =====================================================
 # Empirical vs VG distribution plot
 # =====================================================
@@ -301,6 +338,87 @@ plt.plot(
 )
 
 plt.title(f"{ticker} {d}-day log-return distribution\nEmpirical vs Variance Gamma and GBM")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+
+# =====================================================
+# Left-tail zoomed plot (GBM vs VG)
+# =====================================================
+
+alpha_tail = 0.3
+alpha_extreme = 0.0001
+
+x_left = np.percentile(log_returns, alpha_extreme * 100)
+x_right = np.percentile(log_returns, alpha_tail * 100)
+
+x_grid_left = np.linspace(x_left, x_right, 400)
+
+vg_pdf_left = np.array([
+    cos_pdf(x, mu_hat, theta_hat, sigma_hat, nu_hat)
+    for x in x_grid_left
+])
+
+gbm_pdf_left = norm.pdf(
+    x_grid_left,
+    loc=mu_gbm,
+    scale=sigma_gbm
+)
+
+plt.figure(figsize=(10, 6))
+
+# empirical histogram (left tail only)
+plt.hist(
+    log_returns[log_returns <= x_right],
+    bins=80,
+    density=True,
+    alpha=0.45, 
+    label="Empirical (left tail)"
+)
+
+# VG
+plt.plot(
+    x_grid_left,
+    vg_pdf_left,
+    lw=2.0,
+    label="VG density (left tail)"
+)
+
+# GBM
+plt.plot(
+    x_grid_left,
+    gbm_pdf_left,
+    lw=2.0,
+    linestyle="--",
+    label="GBM density (left tail)"
+)
+
+# VaR reference line（可選但很有說服力）
+plt.axvline(
+    VaR_vg,
+    color="black",
+    linestyle=":",
+    lw=1.5,
+    label="VG 1% VaR"
+)
+
+plt.axvline(
+    var_gbm,
+    color="gray",
+    linestyle=":",
+    lw=1.5,
+    label="GBM 1% VaR"
+)
+
+plt.title(
+    f"{ticker} 10-days log-return\nLeft-tail zoom: GBM vs VG"
+)
+plt.xlabel("Log-return")
+plt.ylabel("Density")
+
+#plt.yscale("log")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
