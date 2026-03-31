@@ -24,7 +24,7 @@ d = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
-df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2024-12-31')] 
+df = df[(df['Date'] >= '2023-01-01') & (df['Date'] <= '2024-12-31')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
 

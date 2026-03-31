@@ -18,13 +18,13 @@ warnings.filterwarnings("ignore")
 # =====================================================
 # 讀資料
 # =====================================================
-ticker = "QQQ"
+ticker = "NASDAQ"  # 可替換成其他股票指數或資產
 alpha = 0.01
 d = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
-df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2024-12-31')] 
+df = df[(df['Date'] >= '2019-01-01') & (df['Date'] <= '2024-12-31')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
 
@@ -261,7 +261,7 @@ print(f"Empirical {alpha*100:.1f}% quantile (CVaR) = {empirical_cvar_simple:.5f}
 
 # Empirical
 skew_emp = skew(log_returns)
-kurt_emp = kurtosis(log_returns, fisher=False)  # 常用 "regular kurtosis"
+kurt_emp = kurtosis(log_returns, fisher=False)  # fisher=False 代表不減去3，直接給出常態分布的kurtosis值（3）作為基準
 
 # GBM (Normal)
 skew_gbm = 0
@@ -275,8 +275,11 @@ var_vg = sigma_hat**2 + nu_hat * theta_hat**2
 skew_vg = (2 * theta_hat**3 * nu_hat**2 + 3 * sigma_hat**2 * theta_hat * nu_hat) / (var_vg ** (3/2))
 
 # Kurtosis
-kurt_vg = 3 * (
-    1 + 2 * nu_hat * (sigma_hat**4 + 2 * sigma_hat**2 * theta_hat**2 + theta_hat**4) / (var_vg**2)
+kurt_vg = 3 + (
+    (   3 * sigma_hat**4 * nu_hat + 12 * sigma_hat**2 * theta_hat**2 * nu_hat**2 + 6 * theta_hat**4 * nu_hat**3
+        + 3 * sigma_hat**4 + 6 * sigma_hat**2 * theta_hat**2 * nu_hat + 3 * theta_hat**4 * nu_hat**2
+    )
+    / (var_vg ** 2)
 )
 
 print("\n===== Skewness & Kurtosis =====")
@@ -343,7 +346,7 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
-
+'''
 # =====================================================
 # Left-tail zoomed plot (GBM vs VG)
 # =====================================================
@@ -423,7 +426,7 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-
+'''
 
 # 計算並顯示總運行時間
 elapsed = time.perf_counter() - start_time
