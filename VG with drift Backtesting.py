@@ -18,14 +18,14 @@ warnings.filterwarnings("ignore")
 # =====================================================
 ticker = "NASDAQ"
 alpha = 0.01
-window = 750
-forecast_horizon = 10
+window = 600
+forecast_horizon = 1
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
 df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2025-05-20')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
-df['LogReturn'] = np.log(df['Close'] / df['Close'].shift(forecast_horizon))
+df['LogReturn'] = np.log(df['Close'] / df['Close'].shift(1))
 df = df.dropna()
 
 
@@ -52,14 +52,12 @@ dates = df['Date']
 
 log_returns = df['LogReturn'].values
 
-
 def empirical_var(data, alpha):
     return np.quantile(data, alpha)
 
 def empirical_cvar(data, alpha):
     var_alpha = np.quantile(data, alpha)
     return data[data <= var_alpha].mean()
-
 
 # =====================================================
 # VG characteristic function 
@@ -85,7 +83,7 @@ def vg_neg_loglik_mixture_fast(params, data):
     x = data[None, :]
 
     log_weight = (
-        np.log(w) + (1/nu - 1) * np.log(g) - sp_gamma(1/nu) #大的window用gamma 小的window用gammaln
+        np.log(w) + (1/nu - 1) * np.log(g) - sp_gammaln(1/nu) #大的window用gamma 小的window用gammaln
     )
 
     log_pdf = norm.logpdf(
@@ -212,7 +210,7 @@ for i in valid_indices:
     res = minimize(
         vg_neg_loglik_mixture_fast,
         init_params,
-        args=(log_returns,),
+        args=(train_data,),
         method="L-BFGS-B",
         bounds=bounds
     )
@@ -225,11 +223,50 @@ for i in valid_indices:
     # ===============================
     # 1️⃣ VG 1-day VaR / CVaR
     # ===============================
-    var_10_log = vg_var(alpha, mu_hat, theta_hat, sigma_hat, nu_hat)
-    cvar_10_log = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, var_10_log)
+    var_1_log = vg_var(alpha, mu_hat, theta_hat, sigma_hat, nu_hat)
+    cvar_1_log = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, var_1_log)
 
-    var_10 = np.exp(var_10_log) - 1
-    cvar_10 = np.exp(cvar_10_log) - 1
+    var_1 = np.exp(var_1_log) - 1
+    cvar_1 = np.exp(cvar_1_log) - 1
+
+
+
+    # ===============================
+    # 2️⃣ Empirical 1-day / 10-day
+    # ===============================
+
+    # 1-day simple return (training window)
+    train_simple = np.exp(train_data) - 1 #所有的window用simple return
+
+    # 10-day overlapping log-return
+    train_10_log = np.array([
+        np.sum(train_data[j:j + forecast_horizon])
+        for j in range(len(train_data)- forecast_horizon + 1)
+    ])
+
+    train_10_simple = np.exp(train_10_log) - 1
+
+    emp_var_1 = empirical_var(train_simple, alpha)
+    emp_cvar_1 = empirical_cvar(train_simple, alpha)
+
+    emp_var_10 = empirical_var(train_10_simple, alpha)
+    emp_cvar_10 = empirical_cvar(train_10_simple, alpha)
+
+
+    # ===============================
+    # 3️⃣ Multiplier
+    # ===============================
+
+    multiplier_var = emp_var_10 / emp_var_1
+    multiplier_cvar = emp_cvar_10 / emp_cvar_1
+
+
+    # ===============================
+    # 4️⃣ Scaled VG 10-day
+    # ===============================
+
+    var_10 = multiplier_var * var_1
+    cvar_10 = multiplier_cvar * cvar_1
 
 
     future_log_return = np.sum(log_returns[i:i + forecast_horizon])

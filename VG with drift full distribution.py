@@ -18,13 +18,13 @@ warnings.filterwarnings("ignore")
 # =====================================================
 # 讀資料
 # =====================================================
-ticker = "NASDAQ"  # 可替換成其他股票指數或資產
+ticker = "S&P500"  # 可替換成其他股票指數或資產
 alpha = 0.01
-d = 10
+d = 1
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
-df = df[(df['Date'] >= '2019-01-01') & (df['Date'] <= '2024-12-31')] 
+df = df[(df['Date'] >= '2021-01-01') & (df['Date'] <= '2024-12-31')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
 
@@ -87,7 +87,7 @@ def vg_neg_loglik_mixture_fast(params, data):
     x = data[None, :]
 
     log_weight = (
-        np.log(w) + (1/nu - 1) * np.log(g) - sp_gamma(1/nu) #大的window用gamma 小的window用gammaln
+        np.log(w) + (1/nu - 1) * np.log(g) - sp_gammaln(1/nu) #都用gammaln型態，避免數值不穩定
     )
 
     log_pdf = norm.logpdf(

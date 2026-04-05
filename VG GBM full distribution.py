@@ -18,13 +18,13 @@ warnings.filterwarnings("ignore")
 # =====================================================
 # 讀資料
 # =====================================================
-ticker = "NASDAQ"
+ticker = "QQQ"  # 可替換成其他股票指數或資產
 alpha = 0.01
-d = 10
+d = 1
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
-df = df[(df['Date'] >= '2023-01-01') & (df['Date'] <= '2024-12-31')] 
+df = df[(df['Date'] >= '2022-01-01') & (df['Date'] <= '2024-12-31')] 
 df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
 
 
@@ -87,7 +87,7 @@ def vg_neg_loglik_mixture_fast(params, data):
     x = data[None, :]             # (1, N)
     
     log_weight = (
-        np.log(w) + (1/nu - 1) * np.log(g) - sp_gamma(1/nu)
+        np.log(w) + (1/nu - 1) * np.log(g) - sp_gammaln(1/nu)
     )
 
 
@@ -104,11 +104,11 @@ def vg_neg_loglik_mixture_fast(params, data):
 # =====================================================
 # MLE estimation
 # =====================================================
-#init_params = np.array([0.002, 0.025, 0.3])
+#init_params = np.array([-0.002, 0.025, 0.6])
 init_params = np.array([0, 0.02, 0.2])
 
-bounds = [(-0.1, 0.1), (1e-4, 1), (1e-4, 1.5)]
-# bounds = [(-0.5, 0.5), (1e-4, 1), (1e-4, 1.5)] # theta, sigma, nu
+bounds = [(-0.1, 0.1), (1e-4, 1), (1e-4, 1.5)]  # theta, sigma, nu
+# bounds = [(-0.5, 0.5), (1e-4, 1), (1e-4, 1.5)] 
 
 res = minimize(
     vg_neg_loglik_mixture_fast,
