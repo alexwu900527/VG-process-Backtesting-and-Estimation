@@ -63,7 +63,7 @@ print(f"Log-likelihood = {-res_gbm.fun:.2f}")
 
 
 # =====================================================
-# VG characteristic function and its derivative
+# VG characteristic function
 # =====================================================
 def vg_cf(u, mu, theta, sigma, nu):
     return np.exp(1j * u * mu) * \

@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
 # 讀資料
-ticker = "NASDAQ"
+ticker = "QQQ"
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
 df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2025-05-20')] 
@@ -22,9 +22,9 @@ backtest_end   = pd.to_datetime("2022-12-31")
 
 
 # 參數
-window = 1000 
+window = 1000
 forecast_horizon = 1
-alpha = 0.025
+alpha = 0.01
 
 
 # ------------------------------

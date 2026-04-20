@@ -18,8 +18,8 @@ warnings.filterwarnings("ignore")
 # =====================================================
 ticker = "NASDAQ"
 alpha = 0.01
-window = 600
-forecast_horizon = 1
+window = 200
+forecast_horizon = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
@@ -32,8 +32,8 @@ df = df.dropna()
 # ------------------------------
 # Backtest window (固定區間)
 # ------------------------------
-backtest_start = pd.to_datetime("2023-01-01")
-backtest_end   = pd.to_datetime("2025-05-20")
+backtest_start = pd.to_datetime("2013-01-01")
+backtest_end   = pd.to_datetime("2022-12-31")
 
 
 # ------------------------------
@@ -62,8 +62,10 @@ def empirical_cvar(data, alpha):
 # =====================================================
 # VG characteristic function 
 # =====================================================
-def vg_cf(u, theta, sigma, nu):
-    return (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-1/nu)
+
+def vg_cf(u, mu, theta, sigma, nu):
+    return np.exp(1j * u * mu) * \
+           (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-1/nu)
 
 
 # =====================================================
@@ -339,8 +341,8 @@ if lr_pof < 0 and lr_pof > -1e-8:
 
 pval_pof = 1 - chi2.cdf(lr_pof, df=1)
 
-print(f'\nKupiec LR POF statistic : {lr_pof:.6f}')
-print(f'Kupiec LR POF p-value   : {pval_pof:.4e}')
+print(f'\nKupiec LR POF statistic ({window}-day Rolling Estimation): {lr_pof:.6f}')
+print(f'Kupiec LR POF p-value  ({window}-day Rolling Estimation) : {pval_pof:.4e}')
 
 # ------------------------------
 # Christoffersen IND and CC 
@@ -411,7 +413,7 @@ else:
 
 print(f'違約時平均實際損失   : {avg_loss:.4f}')
 print(f'CVaR 預估值平均       : {avg_cvar:.4f}')
-print(f'總違約次數             : {num_breaches}（佔 {violation_rate * 100:.2f}%）')
+print(f'總違約次數 ({window}-day Rolling Estimation) : {num_breaches}（佔 {violation_rate * 100:.2f}%）')
 
 print(f'\nKupiec UC Test p-value   : {kupiec_test.pvalue:.4e}')
 print(f'Christoffersen IND p-value: {ind_pval:.4e}')
