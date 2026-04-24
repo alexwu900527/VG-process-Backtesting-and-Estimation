@@ -19,16 +19,16 @@ warnings.filterwarnings("ignore")
 # 基本設定
 # ==============================
 
-ticker = "NASDAQ"
+ticker = "QQQ"
 alpha = 0.01
-window_vg = 600
-window_gbm = 750
-window_whs = 200
-window_garch = 750
+window_vg = 750
+window_gbm = 600
+window_whs = 500
+window_garch = 500
 
-forecast_horizon = 1
+forecast_horizon = 10
 
-backtest_start = pd.to_datetime("2025-01-01")
+backtest_start = pd.to_datetime("2023-01-01")
 backtest_end   = pd.to_datetime("2025-05-20")
 
 
@@ -91,10 +91,11 @@ def empirical_cvar(data, alpha):
 
 
 # =====================================================
-# VG characteristic function 
+# VG characteristic function
 # =====================================================
-def vg_cf(u, theta, sigma, nu):
-    return (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-1/nu)
+def vg_cf(u, mu, theta, sigma, nu):
+    return np.exp(1j * u * mu) * \
+           (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-1/nu)
 
 
 # =====================================================
@@ -172,7 +173,6 @@ def cos_pdf(x, mu,theta, sigma, nu, N=1024, L=10):
     return np.sum(Ak * np.cos(u * (x - a)))
 
 
-
 def vg_pdf_mixture(x, mu, theta, sigma, nu):
     g = g_nodes
     w = g_weights
@@ -183,28 +183,28 @@ def vg_pdf_mixture(x, mu, theta, sigma, nu):
     return np.sum(weight * pdf)
 
 
-def vg_cdf_mixture(x, theta, sigma, nu):
+def vg_cdf_mixture(x, mu, theta, sigma, nu):
     val, _ = quad(
-        lambda t: vg_pdf_mixture(t, theta, sigma, nu),
+        lambda t: vg_pdf_mixture(t, mu, theta, sigma, nu),
         -np.inf,
         x,
         limit=200
     )
     return val
 
-def vg_var(alpha, theta, sigma, nu):
+def vg_var(alpha, mu, theta, sigma, nu):
     lo, hi = -2.0, 0.2   # 對 10-days 很安全
-    for _ in range(60):
+    for _ in range(80):
         mid = 0.5 * (lo + hi)
-        if vg_cdf_mixture(mid, theta, sigma, nu) < alpha:
+        if vg_cdf_mixture(mid, mu, theta, sigma, nu) < alpha:  # mid代表 
             lo = mid
         else:
             hi = mid
     return 0.5 * (lo + hi)
 
-def vg_cvar(alpha, theta, sigma, nu, var_alpha):
+def vg_cvar(alpha, mu, theta, sigma, nu, var_alpha):
     num, _ = quad(
-        lambda x: x * vg_pdf_mixture(x, theta, sigma, nu),
+        lambda x: x * vg_pdf_mixture(x, mu, theta, sigma, nu),
         -np.inf,
         var_alpha,
         limit=200
@@ -230,18 +230,23 @@ for i in valid_indices:
     GL_N = 40
     g_nodes, g_weights = laggauss(GL_N)
 
-    # MLE estimation
-    init_params = np.array([0.0, 0.02, 0.2])
+    init_params = np.array([0.0, 0.0, 0.02, 0.2])
+    bounds = [
+        (-0.1, 0.1),   # mu
+        (-0.1, 0.1),   # theta
+        (1e-4, 1),     # sigma
+        (1e-4, 1.5)    # nu
+    ]
 
     res = minimize(
         vg_neg_loglik_mixture_fast,
         init_params,
         args=(train_data,),
-        bounds = [(-0.01, 0.01), (1e-4, 1), (1e-4, 1.5)], # theta, sigma, nu
         method="L-BFGS-B",
+        bounds=bounds
     )
 
-    theta_hat, sigma_hat, nu_hat = res.x
+    mu_hat, theta_hat, sigma_hat, nu_hat = res.x
 
 
     # === 10-day log-return distribution ===
@@ -249,8 +254,8 @@ for i in valid_indices:
     # ===============================
     # 1️⃣ VG 1-day VaR / CVaR
     # ===============================
-    var_1_log = vg_var(alpha, theta_hat, sigma_hat, nu_hat)
-    cvar_1_log = vg_cvar(alpha, theta_hat, sigma_hat, nu_hat, var_1_log)
+    var_1_log = vg_var(alpha, mu_hat, theta_hat, sigma_hat, nu_hat)
+    cvar_1_log = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, var_1_log)
 
     var_1 = np.exp(var_1_log) - 1
     cvar_1 = np.exp(cvar_1_log) - 1
@@ -479,9 +484,6 @@ for i in valid_indices:
     beta_hat  = res.params['beta[1]']
 
 
-    #if alpha_hat + beta_hat >= 0.999:
-        # Near-IGARCH or non-stationary → 理論上不應做 multi-step VaR
-    #    continue
 
     # ===============================
     # ✅ 2. Mean & variance forecast (arch built-in)

@@ -16,9 +16,9 @@ warnings.filterwarnings("ignore")
 # =====================================================
 # 讀資料 & 設定參數
 # =====================================================
-ticker = "NASDAQ"
-alpha = 0.01
-window = 200
+ticker = "S&P500"
+alpha = 0.025
+window = 500
 forecast_horizon = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])

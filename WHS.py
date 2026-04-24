@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
 # 讀資料
-ticker = "QQQ"
+ticker = "S&P500"
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values("Date")
 df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2025-05-20')] 
@@ -15,8 +15,8 @@ df = df.dropna()
 
 
 # 參數
-window = 1000
-forecast_horizon = 1
+window = 150
+forecast_horizon = 10
 alpha = 0.01
 lambda_ewma = 0.97   # 加權參數
 

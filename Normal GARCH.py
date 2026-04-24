@@ -5,7 +5,7 @@ from scipy.stats import norm, binomtest, chi2
 from arch import arch_model
 
 # 讀資料
-ticker = "QQQ"
+ticker = "S&P500"
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
 df = df[(df['Date'] >= '2010-01-01') & (df['Date'] <= '2025-05-20')] 
@@ -23,8 +23,8 @@ backtest_end   = pd.to_datetime("2022-12-31")
 
 
 # 參數設定
-window = 1000                 
-forecast_horizon = 1       
+window = 150                 
+forecast_horizon = 10       
 alpha = 0.01         
 
 # 儲存結果
@@ -52,9 +52,6 @@ valid_indices = backtest_indices[backtest_indices >= window]
 valid_indices = valid_indices[valid_indices + forecast_horizon < len(df)]
 
 
-# -------------------------------
-# 🔥 Rolling GARCH(1,1) estimation and forecast
-# -------------------------------
 for i in valid_indices:
 
     train_data = log_returns[i-window:i]
@@ -77,7 +74,7 @@ for i in valid_indices:
         continue
 
     # ===============================
-    # ✅ 1. Stationarity check
+    # 1. Stationarity check
     # ===============================
     alpha_hat = res.params['alpha[1]']
     beta_hat  = res.params['beta[1]']
@@ -88,7 +85,7 @@ for i in valid_indices:
     #    continue
 
     # ===============================
-    # ✅ 2. Mean & variance forecast (arch built-in)
+    # 2. Mean & variance forecast 
     # ===============================
     mu_hat = res.params['mu'] / 100
 
@@ -99,7 +96,7 @@ for i in valid_indices:
     h_forecast = forecasts.variance.values[-1] / (100**2)
 
     # ===============================
-    # ✅ 3. 10-day aggregation
+    # 3. 10-day aggregation
     # ===============================
     sigma_10 = np.sqrt(h_forecast.sum())
     mu_10 = mu_hat * forecast_horizon
@@ -124,7 +121,7 @@ for i in valid_indices:
     estimation_dates.append(df['Date'].iloc[i + forecast_horizon])
 
 # -------------------------------
-# 📈 Plot VaR/CVaR and actual returns
+# Plot VaR/CVaR and actual returns
 # -------------------------------
 plt.figure(figsize=(14, 7))
 plt.plot(estimation_dates, actual_returns, label=f'Actual {forecast_horizon}-day Return', color='orange')
