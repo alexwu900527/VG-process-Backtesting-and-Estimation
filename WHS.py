@@ -15,9 +15,9 @@ df = df.dropna()
 
 
 # 參數
-window = 150
-forecast_horizon = 10
-alpha = 0.01
+window = 1000
+forecast_horizon = 1
+alpha = 0.025
 lambda_ewma = 0.97   # 加權參數
 
 # ------------------------------

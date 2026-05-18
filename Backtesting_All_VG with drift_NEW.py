@@ -91,11 +91,11 @@ def empirical_cvar(data, alpha):
 
 
 # =====================================================
-# VG characteristic function
+# VG characteristic function with drift 
 # =====================================================
-def vg_cf(u, mu, theta, sigma, nu):
-    return np.exp(1j * u * mu) * \
-           (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-1/nu)
+def vg_cf(u, mu, theta, sigma, nu, t=1):# change
+    return np.exp(1j * u * mu * t) * \
+           (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-t/nu)
 
 
 # =====================================================
@@ -136,17 +136,17 @@ def vg_neg_loglik_mixture_fast(params, data):
 # COS method: CDF / VaR / CVaR
 # =====================================================
 
-def cos_cdf(x, mu,theta, sigma, nu, N=1024, L=10):
-    c1 = mu + theta
-    c2 = sigma**2 + nu*theta**2
-    c4 = 3*nu*(sigma**4 + 2*sigma**2*theta**2 + theta**4)
+def cos_cdf(x, mu,theta, sigma, nu, t=1, N=1024, L=10):#change
+    c1 = (mu + theta) * t
+    c2 = (sigma**2 + nu*theta**2) * t
+    c4 = 3*nu*(sigma**4 + 2*sigma**2*theta**2 + theta**4) * t
 
     a = c1 - L*np.sqrt(c2 + np.sqrt(c4))
     b = c1 + L*np.sqrt(c2 + np.sqrt(c4))
 
     k = np.arange(N)
     u = k*np.pi/(b-a)
-    phi = vg_cf(u, mu, theta, sigma, nu)
+    phi = vg_cf(u, mu, theta, sigma, nu, t)#change
 
     Ak = (2/(b-a))*np.real(phi*np.exp(-1j*u*a))
     Ak[0] *= 0.5
@@ -173,43 +173,52 @@ def cos_pdf(x, mu,theta, sigma, nu, N=1024, L=10):
     return np.sum(Ak * np.cos(u * (x - a)))
 
 
-def vg_pdf_mixture(x, mu, theta, sigma, nu):
+
+def vg_pdf_mixture(x, mu, theta, sigma, nu, t=1):#change
+
     g = g_nodes
     w = g_weights
 
-    weight = w * g**(1/nu - 1) / sp_gamma(1/nu)
-    pdf = norm.pdf(x, loc=mu + theta*g, scale=sigma*np.sqrt(g))
+    weight = w * g**(t/nu - 1) / sp_gamma(t/nu)
+
+    pdf = norm.pdf(
+        x,
+        loc=mu*t + theta*g,
+        scale=sigma*np.sqrt(g)
+    )
 
     return np.sum(weight * pdf)
 
 
-def vg_cdf_mixture(x, mu, theta, sigma, nu):
+
+def vg_cdf_mixture(x, mu, theta, sigma, nu, t=1):#change
     val, _ = quad(
-        lambda t: vg_pdf_mixture(t, mu, theta, sigma, nu),
+        lambda x: vg_pdf_mixture(x, mu, theta, sigma, nu, t),
         -np.inf,
         x,
         limit=200
     )
     return val
 
-def vg_var(alpha, mu, theta, sigma, nu):
+def vg_var(alpha, mu, theta, sigma, nu, t=1):#change
     lo, hi = -2.0, 0.2   # 對 10-days 很安全
     for _ in range(80):
         mid = 0.5 * (lo + hi)
-        if vg_cdf_mixture(mid, mu, theta, sigma, nu) < alpha:  # mid代表 
+        if vg_cdf_mixture(mid, mu, theta, sigma, nu, t) < alpha:  # mid代表 #change
             lo = mid
         else:
             hi = mid
     return 0.5 * (lo + hi)
 
-def vg_cvar(alpha, mu, theta, sigma, nu, var_alpha):
+def vg_cvar(alpha, mu, theta, sigma, nu, var_alpha, t=1):#change
     num, _ = quad(
-        lambda x: x * vg_pdf_mixture(x, mu, theta, sigma, nu),
+        lambda x: x * vg_pdf_mixture(x, mu, theta, sigma, nu, t),
         -np.inf,
         var_alpha,
         limit=200
     )
     return num / alpha
+
 
 # 找出 backtest 區間對應 index
 backtest_mask = (df['Date'] >= backtest_start) & (df['Date'] <= backtest_end)
@@ -254,50 +263,20 @@ for i in valid_indices:
     # ===============================
     # 1️⃣ VG 1-day VaR / CVaR
     # ===============================
-    var_1_log = vg_var(alpha, mu_hat, theta_hat, sigma_hat, nu_hat)
-    cvar_1_log = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, var_1_log)
 
-    var_1 = np.exp(var_1_log) - 1
-    cvar_1 = np.exp(cvar_1_log) - 1
+    var_10_log = vg_var(#change
+        alpha,
+        mu_hat,
+        theta_hat,
+        sigma_hat,
+        nu_hat,
+        t=10
+    )
 
+    cvar_10_log = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, var_10_log, t=10)#change
 
-    # ===============================
-    # 2️⃣ Empirical 1-day / 10-day
-    # ===============================
-
-    # 1-day simple return (training window)
-    train_simple = np.exp(train_data) - 1 #所有的window用simple return
-
-    # 10-day overlapping log-return
-    train_10_log = np.array([
-        np.sum(train_data[j:j+forecast_horizon])
-        for j in range(len(train_data)-forecast_horizon+1)
-    ])
-
-    train_10_simple = np.exp(train_10_log) - 1
-
-    emp_var_1 = empirical_var(train_simple, alpha)
-    emp_cvar_1 = empirical_cvar(train_simple, alpha)
-
-    emp_var_10 = empirical_var(train_10_simple, alpha)
-    emp_cvar_10 = empirical_cvar(train_10_simple, alpha)
-
-
-    # ===============================
-    # 3️⃣ Multiplier
-    # ===============================
-
-    multiplier_var = emp_var_10 / emp_var_1
-    multiplier_cvar = emp_cvar_10 / emp_cvar_1
-
-
-    # ===============================
-    # 4️⃣ Scaled VG 10-day
-    # ===============================
-
-    var_10 = multiplier_var * var_1
-    cvar_10 = multiplier_cvar * cvar_1
-
+    var_10 = np.exp(var_10_log) - 1
+    cvar_10 = np.exp(cvar_10_log) - 1
 
 
     future_log_return = np.sum(log_returns[i:i + forecast_horizon])
@@ -311,7 +290,6 @@ for i in valid_indices:
     breach_flags_vg.append(future_return < var_10)
     quantile_loss_list_vg.append(ql)
     estimation_dates.append(df['Date'].iloc[i + forecast_horizon])
-
 
 
 

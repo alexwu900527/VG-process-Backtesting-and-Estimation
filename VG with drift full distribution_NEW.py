@@ -18,9 +18,10 @@ warnings.filterwarnings("ignore")
 # =====================================================
 # 讀資料
 # =====================================================
-ticker = "NASDAQ"  # 可替換成其他股票指數或資產
+ticker = "S&P500"  # 可替換成其他股票指數或資產
 alpha = 0.01
-d = 10
+d = 1
+t = 10
 
 df = pd.read_csv(f"{ticker}.csv", parse_dates=['Date'])
 df = df.sort_values('Date')
@@ -63,11 +64,11 @@ print(f"Log-likelihood = {-res_gbm.fun:.2f}")
 
 
 # =====================================================
-# VG characteristic function
+# VG characteristic function with drift 
 # =====================================================
-def vg_cf(u, mu, theta, sigma, nu):
-    return np.exp(1j * u * mu) * \
-           (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-1/nu)
+def vg_cf(u, mu, theta, sigma, nu, t=1):# change
+    return np.exp(1j * u * mu * t) * \
+           (1 - 1j*theta*nu*u + 0.5*sigma**2*nu*u**2) ** (-t/nu)
 
 
 # =====================================================
@@ -141,17 +142,17 @@ print(f"Log-likelihood = {-res.fun:.2f}")
 # COS method: CDF 
 # =====================================================
 
-def cos_cdf(x, mu,theta, sigma, nu, N=1024, L=10):
-    c1 = mu + theta
-    c2 = sigma**2 + nu*theta**2
-    c4 = 3*nu*(sigma**4 + 2*sigma**2*theta**2 + theta**4)
+def cos_cdf(x, mu,theta, sigma, nu, t=1, N=1024, L=10):#change
+    c1 = (mu + theta) * t
+    c2 = (sigma**2 + nu*theta**2) * t
+    c4 = 3*nu*(sigma**4 + 2*sigma**2*theta**2 + theta**4) * t
 
     a = c1 - L*np.sqrt(c2 + np.sqrt(c4))
     b = c1 + L*np.sqrt(c2 + np.sqrt(c4))
 
     k = np.arange(N)
     u = k*np.pi/(b-a)
-    phi = vg_cf(u, mu, theta, sigma, nu)
+    phi = vg_cf(u, mu, theta, sigma, nu, t)#change
 
     Ak = (2/(b-a))*np.real(phi*np.exp(-1j*u*a))
     Ak[0] *= 0.5
@@ -183,38 +184,44 @@ def cos_pdf(x, mu,theta, sigma, nu, N=1024, L=10):
 # =====================================================
 
 
-def vg_pdf_mixture(x,mu,theta, sigma, nu):
+def vg_pdf_mixture(x, mu, theta, sigma, nu, t=1):#change
+
     g = g_nodes
     w = g_weights
 
-    weight = w * g**(1/nu - 1) / sp_gamma(1/nu)
-    pdf = norm.pdf(x, loc=mu + theta*g, scale=sigma*np.sqrt(g))
+    weight = w * g**(t/nu - 1) / sp_gamma(t/nu)
+
+    pdf = norm.pdf(
+        x,
+        loc=mu*t + theta*g,
+        scale=sigma*np.sqrt(g)
+    )
 
     return np.sum(weight * pdf)
 
 
-def vg_cdf_mixture(x, mu, theta, sigma, nu):
+def vg_cdf_mixture(x, mu, theta, sigma, nu, t=1):#change
     val, _ = quad(
-        lambda t: vg_pdf_mixture(t, mu, theta, sigma, nu),
+        lambda x: vg_pdf_mixture(x, mu, theta, sigma, nu, t),
         -np.inf,
         x,
         limit=200
     )
     return val
 
-def vg_var(alpha, mu, theta, sigma, nu):
+def vg_var(alpha, mu, theta, sigma, nu, t=1):#change
     lo, hi = -2.0, 0.2   # 對 10-days 很安全
     for _ in range(80):
         mid = 0.5 * (lo + hi)
-        if vg_cdf_mixture(mid, mu, theta, sigma, nu) < alpha:  # mid代表 
+        if vg_cdf_mixture(mid, mu, theta, sigma, nu, t) < alpha:  # mid代表 #change
             lo = mid
         else:
             hi = mid
     return 0.5 * (lo + hi)
 
-def vg_cvar(alpha, mu, theta, sigma, nu, var_alpha):
+def vg_cvar(alpha, mu, theta, sigma, nu, var_alpha, t=1):#change
     num, _ = quad(
-        lambda x: x * vg_pdf_mixture(x, mu, theta, sigma, nu),
+        lambda x: x * vg_pdf_mixture(x, mu, theta, sigma, nu, t),
         -np.inf,
         var_alpha,
         limit=200
@@ -225,8 +232,16 @@ def vg_cvar(alpha, mu, theta, sigma, nu, var_alpha):
 # VaR / CVaR
 # =====================================================
 
-VaR_vg = vg_var(alpha, mu_hat,theta_hat, sigma_hat, nu_hat)
-CVaR_vg = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, VaR_vg)
+VaR_vg = vg_var(#change
+    alpha,
+    mu_hat,
+    theta_hat,
+    sigma_hat,
+    nu_hat,
+    t=10
+)
+
+CVaR_vg = vg_cvar(alpha, mu_hat, theta_hat, sigma_hat, nu_hat, VaR_vg, t=10)#change
 
 vg_var_simple = np.exp(VaR_vg) - 1
 vg_cvar_simple = np.exp(CVaR_vg) - 1
@@ -269,17 +284,17 @@ kurt_gbm = 3
 
 # VG theoretical moments
 # Var = sigma^2 + nu * theta^2
-var_vg = sigma_hat**2 + nu_hat * theta_hat**2
+var_vg = (sigma_hat**2 + nu_hat * theta_hat**2) * t
 
 # Skewness
-skew_vg = (2 * theta_hat**3 * nu_hat**2 + 3 * sigma_hat**2 * theta_hat * nu_hat) / (var_vg ** (3/2))
+skew_vg = (2 * theta_hat**3 * nu_hat**2 + 3 * sigma_hat**2 * theta_hat * nu_hat) * t / var_vg ** (3/2)
 
 # Kurtosis
 kurt_vg = 3 + (
     (   3 * sigma_hat**4 * nu_hat + 12 * sigma_hat**2 * theta_hat**2 * nu_hat**2 + 6 * theta_hat**4 * nu_hat**3
-        + 3 * sigma_hat**4 + 6 * sigma_hat**2 * theta_hat**2 * nu_hat + 3 * theta_hat**4 * nu_hat**2
+        + (3 * sigma_hat**4 + 6 * sigma_hat**2 * theta_hat**2 * nu_hat + 3 * theta_hat**4 * nu_hat**2) * t
     )
-    / (var_vg ** 2)
+    / (var_vg ** 2) * t
 )
 
 print("\n===== Skewness & Kurtosis =====")
@@ -340,93 +355,13 @@ plt.plot(
     label="Estimated GBM density"
 )
 
-plt.title(f"{ticker} {d}-day log-return distribution\nEmpirical vs Variance Gamma and GBM")
+plt.title(f"{ticker} {t}-day log-return distribution\nEmpirical vs Variance Gamma and GBM")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
 
-'''
-# =====================================================
-# Left-tail zoomed plot (GBM vs VG)
-# =====================================================
 
-alpha_tail = 0.3
-alpha_extreme = 0.0001
-
-x_left = np.percentile(log_returns, alpha_extreme * 100)
-x_right = np.percentile(log_returns, alpha_tail * 100)
-
-x_grid_left = np.linspace(x_left, x_right, 400)
-
-vg_pdf_left = np.array([
-    cos_pdf(x, mu_hat, theta_hat, sigma_hat, nu_hat)
-    for x in x_grid_left
-])
-
-gbm_pdf_left = norm.pdf(
-    x_grid_left,
-    loc=mu_gbm,
-    scale=sigma_gbm
-)
-
-plt.figure(figsize=(10, 6))
-
-# empirical histogram (left tail only)
-plt.hist(
-    log_returns[log_returns <= x_right],
-    bins=80,
-    density=True,
-    alpha=0.45, 
-    label="Empirical (left tail)"
-)
-
-# VG
-plt.plot(
-    x_grid_left,
-    vg_pdf_left,
-    lw=2.0,
-    label="VG density (left tail)"
-)
-
-# GBM
-plt.plot(
-    x_grid_left,
-    gbm_pdf_left,
-    lw=2.0,
-    linestyle="--",
-    label="GBM density (left tail)"
-)
-
-# VaR reference line（可選但很有說服力）
-plt.axvline(
-    VaR_vg,
-    color="black",
-    linestyle=":",
-    lw=1.5,
-    label="VG 1% VaR"
-)
-
-plt.axvline(
-    var_gbm,
-    color="gray",
-    linestyle=":",
-    lw=1.5,
-    label="GBM 1% VaR"
-)
-
-plt.title(
-    f"{ticker} 10-days log-return\nLeft-tail zoom: GBM vs VG"
-)
-plt.xlabel("Log-return")
-plt.ylabel("Density")
-
-#plt.yscale("log")
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
-'''
 
 # 計算並顯示總運行時間
 elapsed = time.perf_counter() - start_time
